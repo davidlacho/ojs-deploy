@@ -1,0 +1,97 @@
+version: "3.9"
+
+name: ojs-stack
+
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --api.dashboard=false
+      - --api.insecure=false
+      - --log.level=INFO
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=ojsnet
+      - --entrypoints.web.address=:80
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - ojsnet
+    restart: unless-stopped
+
+  mariadb:
+    image: mariadb:11.6
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      TZ: ${TZ:-Etc/UTC}
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - ojsnet
+    restart: unless-stopped
+
+  # Copy the OJS app into the persistent volume once.
+  # This makes the web installer output (config.inc.php, etc.) persist across redeploys.
+  ojs-init:
+    image: ojs-iac:local
+    build:
+      context: ./ojs
+      args:
+        OJS_TARBALL_URL: ${OJS_TARBALL_URL}
+    volumes:
+      - ojs-app:/ojs-app
+    environment:
+      OJS_TARBALL_URL: ${OJS_TARBALL_URL}
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      set -eu;
+      CURRENT_URL_FILE=/ojs-app/.ojs-bootstrap-url;
+      CURRENT_URL="$(cat "$CURRENT_URL_FILE" 2>/dev/null || true)";
+      if [ ! -f "$CURRENT_URL_FILE" ] || [ "$CURRENT_URL" != "$OJS_TARBALL_URL" ]; then
+        cp -a /var/www/html/. /ojs-app/;
+        echo "$OJS_TARBALL_URL" > "$CURRENT_URL_FILE";
+      fi
+    networks:
+      - ojsnet
+    restart: "no"
+
+  ojs:
+    image: ojs-iac:local
+    build:
+      context: ./ojs
+      args:
+        OJS_TARBALL_URL: ${OJS_TARBALL_URL}
+    depends_on:
+      - mariadb
+      - ojs-init
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      # Used by the OJS installer as a suggested base URL; you can override later.
+      OJS_BASE_URL: ${OJS_BASE_URL:-http://localhost}
+    volumes:
+      - ojs-app:/var/www/html
+      - ojs-files:/var/ojs-files
+    networks:
+      - ojsnet
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ojs-http.entrypoints=web
+      - 'traefik.http.routers.ojs-http.rule=HostRegexp(`{host:.+}`)'
+      - traefik.http.services.ojs-http.loadbalancer.server.port=80
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  ojs-app:
+  # Stores OJS uploaded files outside the web root (safer).
+  ojs-files:
+
+networks:
+  ojsnet:
+    driver: bridge
+

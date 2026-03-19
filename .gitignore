@@ -1,0 +1,18 @@
+# Environment / secrets
+.env
+*.env
+
+# Docker Compose artifacts
+*.log
+
+# DS_Store
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+
+# Named volumes will live outside the repo; ignore any local “volume-like” directories if you create them
+ojs-app/
+db-data/
+
