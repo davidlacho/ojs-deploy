@@ -51,7 +51,7 @@ jobs:
               sudo apt-get update
 
               sudo apt-get install -y docker.io
-              # Prefer the v2 Compose plugin; fall back to legacy `docker-compose` if needed.
+              # Prefer the v2 Compose plugin; fall back to legacy docker-compose if needed.
               sudo apt-get install -y docker-compose-plugin || sudo apt-get install -y docker-compose
             fi
             sudo systemctl enable docker --now || true

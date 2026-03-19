@@ -9,7 +9,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     curl ca-certificates tar \
     libicu-dev libzip-dev libpng-dev libjpeg-dev libfreetype6-dev \
-    libcurl4-openssl-dev \
+    libcurl4-openssl-dev libonig-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # PHP extensions needed by OJS deployments.
