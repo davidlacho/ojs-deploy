@@ -42,19 +42,25 @@ jobs:
           ssh -o StrictHostKeyChecking=no "${DO_USER}@${DO_HOST}" bash -lc "
             set -euo pipefail
 
-            # Install Docker Engine + Compose plugin if missing.
-            if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+            # Install Docker Engine + Compose v2 if missing.
+            if ! command -v docker >/dev/null 2>&1 || ! sudo docker compose version >/dev/null 2>&1; then
               sudo apt-get update
-              # 'docker-compose-plugin' is available in Ubuntu repos that may require 'universe'.
               sudo apt-get install -y software-properties-common
               sudo add-apt-repository -y universe
               sudo apt-get update
 
               sudo apt-get install -y docker.io
-              # Prefer the v2 Compose plugin; fall back to legacy docker-compose if needed.
-              sudo apt-get install -y docker-compose-plugin || sudo apt-get install -y docker-compose
+              # Install Compose v2 from distro packages when available.
+              sudo apt-get install -y docker-compose-plugin || sudo apt-get install -y docker-compose-v2 || true
             fi
             sudo systemctl enable docker --now || true
+
+            # Legacy docker-compose v1 is incompatible with newer Docker in some cases.
+            # Require docker compose (v2) and fail fast if unavailable.
+            if ! sudo docker compose version >/dev/null 2>&1; then
+              echo "docker compose (v2) is required but not available on host."
+              exit 1
+            fi
 
             cd \"${REMOTE_DIR}\"
 
@@ -71,13 +77,9 @@ jobs:
               > .env
 
             # Start stack.
-            if sudo docker compose version >/dev/null 2>&1; then
-              sudo docker compose up -d --build
-              sudo docker compose ps
-            else
-              sudo docker-compose up -d --build
-              sudo docker-compose ps
-            fi
+            sudo docker compose down --remove-orphans || true
+            sudo docker compose up -d --build
+            sudo docker compose ps
 
             # Basic local smoke check from the droplet.
             # Accept common initial responses (200/301/302) while app/setup redirects settle.
@@ -86,11 +88,7 @@ jobs:
             echo \"Local HTTP status: \${HTTP_CODE}\"
             if [ \"\${HTTP_CODE}\" != \"200\" ] && [ \"\${HTTP_CODE}\" != \"301\" ] && [ \"\${HTTP_CODE}\" != \"302\" ]; then
               echo \"Unexpected local HTTP status: \${HTTP_CODE}\"
-              if sudo docker compose version >/dev/null 2>&1; then
-                sudo docker compose logs --tail 200
-              else
-                sudo docker-compose logs --tail 200
-              fi
+              sudo docker compose logs --tail 200
               exit 1
             fi
           "
