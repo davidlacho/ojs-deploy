@@ -43,11 +43,18 @@ jobs:
             set -euo pipefail
 
             # Install Docker Engine + Compose plugin if missing.
-            if ! command -v docker >/dev/null 2>&1; then
+            if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
               sudo apt-get update
-              sudo apt-get install -y docker.io docker-compose-plugin
+              # 'docker-compose-plugin' is available in Ubuntu repos that may require 'universe'.
+              sudo apt-get install -y software-properties-common
+              sudo add-apt-repository -y universe
+              sudo apt-get update
+
+              sudo apt-get install -y docker.io
+              # Prefer the v2 Compose plugin; fall back to legacy `docker-compose` if needed.
+              sudo apt-get install -y docker-compose-plugin || sudo apt-get install -y docker-compose
             fi
-            sudo systemctl enable docker --now
+            sudo systemctl enable docker --now || true
 
             cd \"${REMOTE_DIR}\"
 
@@ -64,6 +71,10 @@ jobs:
               > .env
 
             # Start stack.
-            docker compose up -d --build
+            if sudo docker compose version >/dev/null 2>&1; then
+              sudo docker compose up -d --build
+            else
+              sudo docker-compose up -d --build
+            fi
           "
 
