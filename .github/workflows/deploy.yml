@@ -58,7 +58,7 @@ jobs:
             # Legacy docker-compose v1 is incompatible with newer Docker in some cases.
             # Require docker compose (v2) and fail fast if unavailable.
             if ! sudo docker compose version >/dev/null 2>&1; then
-              echo "docker compose (v2) is required but not available on host."
+              echo \"docker compose v2 is required but not available on host.\"
               exit 1
             fi
 
