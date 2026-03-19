@@ -51,10 +51,10 @@ services:
     command: >
       set -eu;
       CURRENT_URL_FILE=/ojs-app/.ojs-bootstrap-url;
-      CURRENT_URL="$(cat "$CURRENT_URL_FILE" 2>/dev/null || true)";
-      if [ ! -f "$CURRENT_URL_FILE" ] || [ "$CURRENT_URL" != "$OJS_TARBALL_URL" ]; then
+      CURRENT_URL="$$(cat "$$CURRENT_URL_FILE" 2>/dev/null || true)";
+      if [ ! -f "$$CURRENT_URL_FILE" ] || [ "$$CURRENT_URL" != "$$OJS_TARBALL_URL" ]; then
         cp -a /var/www/html/. /ojs-app/;
-        echo "$OJS_TARBALL_URL" > "$CURRENT_URL_FILE";
+        echo "$$OJS_TARBALL_URL" > "$$CURRENT_URL_FILE";
       fi
     networks:
       - ojsnet
