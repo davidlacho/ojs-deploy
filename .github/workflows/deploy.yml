@@ -52,16 +52,16 @@ jobs:
             cd \"${REMOTE_DIR}\"
 
             # Create runtime env (do not store secrets in git).
-            cat > .env <<EOF
-TZ=Etc/UTC
-OJS_TARBALL_URL=https://pkp.sfu.ca/ojs/download/ojs-3.5.0-3.tar.gz
-MARIADB_ROOT_PASSWORD='${MARIADB_ROOT_PASSWORD}'
-MARIADB_DATABASE='${MARIADB_DATABASE}'
-MARIADB_USER='${MARIADB_USER}'
-MARIADB_PASSWORD='${MARIADB_PASSWORD}'
-ACME_EMAIL='${ACME_EMAIL}'
-OJS_HOSTNAME='${OJS_HOSTNAME}'
-EOF
+            printf '%s\n' \
+              "TZ=Etc/UTC" \
+              "OJS_TARBALL_URL=https://pkp.sfu.ca/ojs/download/ojs-3.5.0-3.tar.gz" \
+              "MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}" \
+              "MARIADB_DATABASE=${MARIADB_DATABASE}" \
+              "MARIADB_USER=${MARIADB_USER}" \
+              "MARIADB_PASSWORD=${MARIADB_PASSWORD}" \
+              "ACME_EMAIL=${ACME_EMAIL}" \
+              "OJS_HOSTNAME=${OJS_HOSTNAME}" \
+              > .env
 
             # Start stack.
             docker compose up -d --build
