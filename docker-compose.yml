@@ -79,7 +79,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.ojs-http.entrypoints=web
-      - 'traefik.http.routers.ojs-http.rule=HostRegexp(`{host:.+}`)'
+      - 'traefik.http.routers.ojs-http.rule=PathPrefix(`/`)'
       - traefik.http.services.ojs-http.loadbalancer.server.port=80
     restart: unless-stopped
 

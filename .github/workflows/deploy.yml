@@ -73,8 +73,41 @@ jobs:
             # Start stack.
             if sudo docker compose version >/dev/null 2>&1; then
               sudo docker compose up -d --build
+              sudo docker compose ps
             else
               sudo docker-compose up -d --build
+              sudo docker-compose ps
+            fi
+
+            # Basic local smoke check from the droplet.
+            # Accept common initial responses (200/301/302) while app/setup redirects settle.
+            sleep 5
+            HTTP_CODE=\$(curl -sS -o /dev/null -w \"%{http_code}\" http://127.0.0.1/ || true)
+            echo \"Local HTTP status: \${HTTP_CODE}\"
+            if [ \"\${HTTP_CODE}\" != \"200\" ] && [ \"\${HTTP_CODE}\" != \"301\" ] && [ \"\${HTTP_CODE}\" != \"302\" ]; then
+              echo \"Unexpected local HTTP status: \${HTTP_CODE}\"
+              if sudo docker compose version >/dev/null 2>&1; then
+                sudo docker compose logs --tail 200
+              else
+                sudo docker-compose logs --tail 200
+              fi
+              exit 1
             fi
           "
+
+      - name: Smoke test public endpoint
+        env:
+          DO_HOST: ${{ secrets.DO_HOST }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://${DO_HOST}/" || true)"
+            echo "Attempt ${attempt}: public HTTP status ${HTTP_CODE}"
+            if [ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "301" ] || [ "${HTTP_CODE}" = "302" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Public endpoint did not return 200/301/302 after retries."
+          exit 1
 
