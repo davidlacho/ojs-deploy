@@ -15,7 +15,7 @@ RUN apt-get update \
 # PHP extensions needed by OJS deployments.
 RUN docker-php-ext-configure gd \
   && docker-php-ext-install \
-    intl mbstring pdo pdo_mysql xml zip gd curl bcmath
+    intl mbstring pdo pdo_mysql xml zip gd curl bcmath ftp
 
 RUN a2enmod rewrite headers ssl >/dev/null 2>&1 || true
 

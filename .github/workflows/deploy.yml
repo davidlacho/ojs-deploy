@@ -82,13 +82,21 @@ jobs:
             sudo docker compose ps
 
             # Basic local smoke check from the droplet.
-            # Accept common initial responses (200/301/302) while app/setup redirects settle.
-            sleep 5
-            HTTP_CODE=\$(curl -sS -o /dev/null -w \"%{http_code}\" http://127.0.0.1/ || true)
-            echo \"Local HTTP status: \${HTTP_CODE}\"
-            if [ \"\${HTTP_CODE}\" != \"200\" ] && [ \"\${HTTP_CODE}\" != \"301\" ] && [ \"\${HTTP_CODE}\" != \"302\" ]; then
-              echo \"Unexpected local HTTP status: \${HTTP_CODE}\"
-              sudo docker compose logs --tail 200
+            # Retry while services warm up (build/startup can take a bit).
+            LOCAL_OK=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              HTTP_CODE=\$(curl -sS -o /dev/null -w \"%{http_code}\" http://127.0.0.1/ || true)
+              echo \"Local attempt \${attempt}: HTTP status \${HTTP_CODE}\"
+              if [ \"\${HTTP_CODE}\" = \"200\" ] || [ \"\${HTTP_CODE}\" = \"301\" ] || [ \"\${HTTP_CODE}\" = \"302\" ]; then
+                LOCAL_OK=1
+                break
+              fi
+              sleep 5
+            done
+            if [ \"\${LOCAL_OK}\" != \"1\" ]; then
+              echo \"Local smoke check failed after retries.\"
+              sudo docker compose ps
+              sudo docker compose logs --tail 250
               exit 1
             fi
           "
@@ -98,14 +106,23 @@ jobs:
           DO_HOST: ${{ secrets.DO_HOST }}
         run: |
           set -euo pipefail
+          TMP_HEADERS="$(mktemp)"
+          TMP_BODY="$(mktemp)"
+          trap 'rm -f "${TMP_HEADERS}" "${TMP_BODY}"' EXIT
           for attempt in 1 2 3 4 5; do
-            HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://${DO_HOST}/" || true)"
+            HTTP_CODE="$(curl -sS -D "${TMP_HEADERS}" -o "${TMP_BODY}" -w '%{http_code}' "http://${DO_HOST}/" || true)"
             echo "Attempt ${attempt}: public HTTP status ${HTTP_CODE}"
-            if [ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "301" ] || [ "${HTTP_CODE}" = "302" ]; then
+            if [ "${HTTP_CODE}" = "200" ]; then
               exit 0
+            fi
+            if [ "${attempt}" = "5" ]; then
+              echo "Final public probe failed. Response headers:"
+              sed -n '1,80p' "${TMP_HEADERS}" || true
+              echo "Final public probe failed. Response body snippet:"
+              sed -n '1,120p' "${TMP_BODY}" || true
             fi
             sleep 5
           done
-          echo "Public endpoint did not return 200/301/302 after retries."
+          echo "Public endpoint did not return HTTP 200 after retries."
           exit 1
 
