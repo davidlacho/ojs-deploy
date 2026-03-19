@@ -8,6 +8,7 @@ ENV OJS_TARBALL_URL="${OJS_TARBALL_URL}"
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     curl ca-certificates tar \
+    pkg-config \
     libicu-dev libzip-dev libpng-dev libjpeg-dev libfreetype6-dev libxml2-dev \
     libcurl4-openssl-dev libonig-dev \
   && rm -rf /var/lib/apt/lists/*
@@ -15,7 +16,7 @@ RUN apt-get update \
 # PHP extensions needed by OJS deployments.
 RUN docker-php-ext-configure gd \
   && docker-php-ext-install \
-    intl mbstring pdo pdo_mysql xml zip gd curl bcmath ftp
+    intl mbstring pdo pdo_mysql mysqli xml zip gd curl bcmath ftp
 
 RUN a2enmod rewrite headers ssl >/dev/null 2>&1 || true
 
