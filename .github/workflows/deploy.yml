@@ -90,6 +90,13 @@ jobs:
             sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
             sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
 
+            echo "UFW status (if installed):"
+            if command -v ufw >/dev/null 2>&1; then
+              sudo ufw status verbose || true
+            else
+              echo "ufw not installed on host."
+            fi
+
             # Local HTTP redirect checks from the droplet.
             # Public HTTPS checks later in this workflow remain the strict gate.
             TMP_HEADERS_LOCAL=\$(mktemp)
