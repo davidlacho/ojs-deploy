@@ -98,7 +98,7 @@ jobs:
 
             HTTPS_OK=0
             for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
-              HTTPS_CODE=\$(curl -k -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${CANONICAL_HOST}:443:127.0.0.1\" \"https://${CANONICAL_HOST}/\" || true)
+              HTTPS_CODE=\$(curl -k -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" -H \"Host: ${CANONICAL_HOST}\" https://127.0.0.1/ || true)
               HTTPS_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
               echo \"Local HTTPS attempt \${attempt}: status \${HTTPS_CODE}, location: \${HTTPS_LOCATION}\"
               if [ \"\${HTTPS_CODE}\" = \"200\" ]; then
@@ -118,7 +118,7 @@ jobs:
               exit 1
             fi
 
-            HTTP_APEX_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${CANONICAL_HOST}:80:127.0.0.1\" \"http://${CANONICAL_HOST}/\" || true)
+            HTTP_APEX_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" -H \"Host: ${CANONICAL_HOST}\" http://127.0.0.1/ || true)
             HTTP_APEX_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
             echo \"Local HTTP apex redirect check: status \${HTTP_APEX_CODE}, location: \${HTTP_APEX_LOCATION}\"
             if ! printf '%s' \"\${HTTP_APEX_CODE}\" | grep -Eq '^(301|308)$'; then
@@ -130,7 +130,7 @@ jobs:
               exit 1
             fi
 
-            HTTP_WWW_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${WWW_HOST}:80:127.0.0.1\" \"http://${WWW_HOST}/\" || true)
+            HTTP_WWW_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" -H \"Host: ${WWW_HOST}\" http://127.0.0.1/ || true)
             HTTP_WWW_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
             echo \"Local HTTP www redirect check: status \${HTTP_WWW_CODE}, location: \${HTTP_WWW_LOCATION}\"
             if ! printf '%s' \"\${HTTP_WWW_CODE}\" | grep -Eq '^(301|308)$'; then
@@ -142,7 +142,7 @@ jobs:
               exit 1
             fi
 
-            HTTPS_WWW_CODE=\$(curl -k -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${WWW_HOST}:443:127.0.0.1\" \"https://${WWW_HOST}/\" || true)
+            HTTPS_WWW_CODE=\$(curl -k -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" -H \"Host: ${WWW_HOST}\" https://127.0.0.1/ || true)
             HTTPS_WWW_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
             echo \"Local HTTPS www redirect check: status \${HTTPS_WWW_CODE}, location: \${HTTPS_WWW_LOCATION}\"
             if ! printf '%s' \"\${HTTPS_WWW_CODE}\" | grep -Eq '^(301|308)$'; then
