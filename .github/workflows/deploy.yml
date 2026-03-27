@@ -128,7 +128,7 @@ jobs:
           trap 'rm -f "${TMP_HEADERS}" "${TMP_BODY}"' EXIT
 
           HTTPS_OK=0
-          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
             HTTPS_CODE="$(curl -sS -D "${TMP_HEADERS}" -o "${TMP_BODY}" -w '%{http_code}' "https://${CANONICAL_HOST}/" || true)"
             HTTPS_LOCATION="$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,"");gsub(/\r/,"");print;exit}' "${TMP_HEADERS}" || true)"
             echo "Public HTTPS attempt ${attempt}: status ${HTTPS_CODE}, location: ${HTTPS_LOCATION}"
@@ -186,4 +186,13 @@ jobs:
             echo "Expected public HTTPS www redirect to canonical HTTPS host."
             exit 1
           fi
+
+      - name: Dump Traefik logs on failure
+        if: failure()
+        env:
+          DO_HOST: ${{ secrets.DO_HOST }}
+          DO_USER: ${{ secrets.DO_USER }}
+        run: |
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=no "${DO_USER}@${DO_HOST}" "cd /opt/ojs && sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml logs traefik --tail 300 || true"
 
