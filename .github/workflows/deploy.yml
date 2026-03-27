@@ -135,7 +135,7 @@ jobs:
               HTTPS_OK=1
               break
             fi
-            if [ "${HTTPS_CODE}" = "302" ] && printf '%s' "${HTTPS_LOCATION}" | grep -Eq '^https?://[^/]+/index\.php/index/[^/]+/install/?$|^/index\.php/index/[^/]+/install/?$'; then
+            if [ "${HTTPS_CODE}" = "302" ] && printf '%s' "${HTTPS_LOCATION}" | grep -Eq '^https?://[^/]+/index\.php/index/[^/]+/install/?$|^/index\.php/index/[^/]+/install/?$|^https?://[^/]+/index\.php/[^/]+/?$|^/index\.php/[^/]+/?$'; then
               HTTPS_OK=1
               break
             fi
@@ -147,6 +147,13 @@ jobs:
             sed -n '1,80p' "${TMP_HEADERS}" || true
             echo "Last HTTPS response body snippet:"
             sed -n '1,120p' "${TMP_BODY}" || true
+            exit 1
+          fi
+
+          HTTPS_FOLLOW_CODE="$(curl -sS -L --max-redirs 10 -o /dev/null -w '%{http_code}' "https://${CANONICAL_HOST}/" || true)"
+          echo "Public HTTPS followed redirect final status: ${HTTPS_FOLLOW_CODE}"
+          if ! printf '%s' "${HTTPS_FOLLOW_CODE}" | grep -Eq '^(200|302)$'; then
+            echo "Expected followed HTTPS redirect chain to end at 200 or 302."
             exit 1
           fi
 
@@ -183,6 +190,13 @@ jobs:
           fi
           if ! printf '%s' "${HTTPS_WWW_LOCATION}" | grep -Eq "^https://${CANONICAL_HOST}/"; then
             echo "Expected public HTTPS www redirect to canonical HTTPS host."
+            exit 1
+          fi
+
+          HTTPS_WWW_FOLLOW_CODE="$(curl -sS -L --max-redirs 10 -o /dev/null -w '%{http_code}' "https://${WWW_HOST}/" || true)"
+          echo "Public HTTPS www followed redirect final status: ${HTTPS_WWW_FOLLOW_CODE}"
+          if ! printf '%s' "${HTTPS_WWW_FOLLOW_CODE}" | grep -Eq '^(200|302)$'; then
+            echo "Expected followed HTTPS www redirect chain to end at 200 or 302."
             exit 1
           fi
 
