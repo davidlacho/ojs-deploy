@@ -21,6 +21,7 @@ if [ -n "${OJS_HOSTNAME:-}" ] && [ -f "$CONFIG_FILE" ]; then
   sed -i \
     -e "s#^allowed_hosts[[:space:]]*=.*#allowed_hosts = \"[${ALLOWED_JSON}]\"#" \
     -e "s#^base_url[[:space:]]*=.*#base_url = \"https://${OJS_HOSTNAME}\"#" \
+    -e "s#^force_ssl[[:space:]]*=.*#force_ssl = On#" \
     "$CONFIG_FILE"
 fi
 
