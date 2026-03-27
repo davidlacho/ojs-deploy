@@ -85,12 +85,14 @@ jobs:
             sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
 
             # Local HTTPS + redirect checks from the droplet.
+            # Use -k locally because Traefik can briefly serve its default cert
+            # before Let's Encrypt issuance completes.
             TMP_HEADERS_LOCAL=\$(mktemp)
             trap 'rm -f \"\${TMP_HEADERS_LOCAL}\"' EXIT
 
             HTTPS_OK=0
             for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
-              HTTPS_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${CANONICAL_HOST}:443:127.0.0.1\" \"https://${CANONICAL_HOST}/\" || true)
+              HTTPS_CODE=\$(curl -k -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${CANONICAL_HOST}:443:127.0.0.1\" \"https://${CANONICAL_HOST}/\" || true)
               HTTPS_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
               echo \"Local HTTPS attempt \${attempt}: status \${HTTPS_CODE}, location: \${HTTPS_LOCATION}\"
               if [ \"\${HTTPS_CODE}\" = \"200\" ]; then
@@ -134,7 +136,7 @@ jobs:
               exit 1
             fi
 
-            HTTPS_WWW_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${WWW_HOST}:443:127.0.0.1\" \"https://${WWW_HOST}/\" || true)
+            HTTPS_WWW_CODE=\$(curl -k -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${WWW_HOST}:443:127.0.0.1\" \"https://${WWW_HOST}/\" || true)
             HTTPS_WWW_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
             echo \"Local HTTPS www redirect check: status \${HTTPS_WWW_CODE}, location: \${HTTPS_WWW_LOCATION}\"
             if ! printf '%s' \"\${HTTPS_WWW_CODE}\" | grep -Eq '^(301|308)$'; then
