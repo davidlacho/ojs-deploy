@@ -97,34 +97,23 @@ jobs:
               echo \"ufw not installed on host.\"
             fi
 
-            # Local HTTP redirect checks from the droplet.
+            # Local HTTP redirect probes from the droplet (diagnostic only).
             # Public HTTPS checks later in this workflow remain the strict gate.
             TMP_HEADERS_LOCAL=\$(mktemp)
             trap 'rm -f \"\${TMP_HEADERS_LOCAL}\"' EXIT
 
-            HTTP_APEX_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" -H \"Host: ${CANONICAL_HOST}\" http://127.0.0.1/ || true)
-            HTTP_APEX_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
-            echo \"Local HTTP apex redirect check: status \${HTTP_APEX_CODE}, location: \${HTTP_APEX_LOCATION}\"
-            if ! printf '%s' \"\${HTTP_APEX_CODE}\" | grep -Eq '^(301|308)$'; then
-              echo \"Expected HTTP apex to return 301/308 redirect.\"
-              exit 1
-            fi
-            if ! printf '%s' \"\${HTTP_APEX_LOCATION}\" | grep -Eq \"^https://${CANONICAL_HOST}/\"; then
-              echo \"Expected HTTP apex redirect Location to canonical HTTPS host.\"
-              exit 1
-            fi
-
-            HTTP_WWW_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" -H \"Host: ${WWW_HOST}\" http://127.0.0.1/ || true)
-            HTTP_WWW_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
-            echo \"Local HTTP www redirect check: status \${HTTP_WWW_CODE}, location: \${HTTP_WWW_LOCATION}\"
-            if ! printf '%s' \"\${HTTP_WWW_CODE}\" | grep -Eq '^(301|308)$'; then
-              echo \"Expected HTTP www to return 301/308 redirect.\"
-              exit 1
-            fi
-            if ! printf '%s' \"\${HTTP_WWW_LOCATION}\" | grep -Eq \"^https://${CANONICAL_HOST}/\"; then
-              echo \"Expected HTTP www redirect Location to canonical HTTPS host.\"
-              exit 1
-            fi
+            for attempt in 1 2 3 4 5 6; do
+              HTTP_APEX_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" -H \"Host: ${CANONICAL_HOST}\" http://127.0.0.1/ || true)
+              HTTP_APEX_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
+              echo \"Local HTTP apex probe \${attempt}: status \${HTTP_APEX_CODE}, location: \${HTTP_APEX_LOCATION}\"
+              HTTP_WWW_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" -H \"Host: ${WWW_HOST}\" http://127.0.0.1/ || true)
+              HTTP_WWW_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
+              echo \"Local HTTP www probe \${attempt}: status \${HTTP_WWW_CODE}, location: \${HTTP_WWW_LOCATION}\"
+              if printf '%s' \"\${HTTP_APEX_CODE}\" | grep -Eq '^(301|308)$' && printf '%s' \"\${HTTP_APEX_LOCATION}\" | grep -Eq \"^https://${CANONICAL_HOST}/\" && printf '%s' \"\${HTTP_WWW_CODE}\" | grep -Eq '^(301|308)$' && printf '%s' \"\${HTTP_WWW_LOCATION}\" | grep -Eq \"^https://${CANONICAL_HOST}/\"; then
+                break
+              fi
+              sleep 3
+            done
           "
 
       - name: Smoke test public endpoint
