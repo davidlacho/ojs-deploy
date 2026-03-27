@@ -36,6 +36,7 @@ services:
       - 'traefik.http.routers.ojs-http-www.service=noop@internal'
       - 'traefik.http.routers.ojs-https.entrypoints=websecure'
       - 'traefik.http.routers.ojs-https.rule=Host(`${OJS_HOSTNAME}`)'
+      - 'traefik.http.routers.ojs-https.service=ojs-https'
       - 'traefik.http.routers.ojs-https.tls=true'
       - 'traefik.http.routers.ojs-https.tls.certresolver=letsencrypt'
       - 'traefik.http.routers.ojs-https-www.entrypoints=websecure'

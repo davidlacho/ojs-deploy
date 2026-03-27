@@ -89,5 +89,6 @@ volumes:
 
 networks:
   ojsnet:
+    name: ojsnet
     driver: bridge
 
