@@ -34,6 +34,12 @@ jobs:
           CANONICAL_HOST="${OJS_HOSTNAME}"
           WWW_HOST="www.${OJS_HOSTNAME}"
 
+          if [ -z "${CANONICAL_HOST}" ] || printf '%s' "${CANONICAL_HOST}" | grep -Eq 'https?://|/|[[:space:]]'; then
+            echo "Invalid OJS_HOSTNAME secret: '${CANONICAL_HOST}'"
+            echo "Set OJS_HOSTNAME to host only, e.g. counterpublics.care (no protocol, no path)."
+            exit 1
+          fi
+
           ssh -o StrictHostKeyChecking=no "${DO_USER}@${DO_HOST}" "mkdir -p ${REMOTE_DIR}"
 
           rsync -az --delete \
