@@ -85,9 +85,8 @@ jobs:
               "OJS_HOSTNAME=${OJS_HOSTNAME}" \
               > .env
 
-            # Start stack.
-            sudo docker compose down --remove-orphans || true
-            sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+            # Start/update stack without a full teardown to avoid TLS cold-start races.
+            sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build --remove-orphans
             sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
 
             echo \"UFW status (if installed):\"

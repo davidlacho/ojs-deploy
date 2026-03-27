@@ -14,5 +14,15 @@ fi
 mkdir -p /var/ojs-files /var/ojs-files/public
 chown -R www-data:www-data /var/ojs-files || true
 
+# Keep host allow-list declarative for reverse-proxy deployments.
+CONFIG_FILE="/var/www/html/config.inc.php"
+if [ -n "${OJS_HOSTNAME:-}" ] && [ -f "$CONFIG_FILE" ]; then
+  ALLOWED_JSON="\\\"${OJS_HOSTNAME}\\\",\\\"www.${OJS_HOSTNAME}\\\""
+  sed -i \
+    -e "s#^allowed_hosts[[:space:]]*=.*#allowed_hosts = \"[${ALLOWED_JSON}]\"#" \
+    -e "s#^base_url[[:space:]]*=.*#base_url = \"https://${OJS_HOSTNAME}\"#" \
+    "$CONFIG_FILE"
+fi
+
 exec "$@"
 
