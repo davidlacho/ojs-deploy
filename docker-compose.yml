@@ -70,6 +70,8 @@ services:
       # Used by the OJS installer as a suggested base URL; you can override later.
       OJS_BASE_URL: ${OJS_BASE_URL:-http://localhost}
       OJS_HOSTNAME: ${OJS_HOSTNAME:-}
+      OJS_JOURNAL_PATH: ${OJS_JOURNAL_PATH:-}
+      OJS_JOURNAL_THEME: ${OJS_JOURNAL_THEME:-}
     volumes:
       - ojs-app:/var/www/html
       - ojs-files:/var/ojs-files

@@ -7,7 +7,7 @@ ENV OJS_TARBALL_URL="${OJS_TARBALL_URL}"
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    curl ca-certificates tar \
+    curl ca-certificates tar git \
     pkg-config \
     libicu-dev libzip-dev libpng-dev libjpeg-dev libfreetype6-dev libxml2-dev \
     libcurl4-openssl-dev libonig-dev \

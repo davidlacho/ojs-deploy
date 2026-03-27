@@ -81,6 +81,11 @@ Set these in **Settings -> Secrets and variables -> Actions**:
 - `ACME_EMAIL` - valid email for Let's Encrypt notifications
 - `OJS_HOSTNAME` - apex host only, e.g. `journal.example.org`
 
+Optional GitHub **Repository Variables**:
+
+- `OJS_JOURNAL_PATH` - journal path to configure automatically (e.g. `joicac`)
+- `OJS_JOURNAL_THEME` - theme path to enforce (e.g. `bootstrap3`, `default`)
+
 Important: `OJS_HOSTNAME` must be host-only (no `https://`, no path, no trailing slash).
 
 ## First deploy
@@ -108,6 +113,13 @@ On container startup, `ojs/entrypoint.sh` enforces:
 - `base_url = "https://<OJS_HOSTNAME>"`
 - `allowed_hosts = '["<OJS_HOSTNAME>","www.<OJS_HOSTNAME>"]'`
 - `force_ssl = On`
+
+It can also apply journal theme declaratively when both are set:
+
+- `OJS_JOURNAL_PATH=<journalPath>`
+- `OJS_JOURNAL_THEME=<themePath>`
+
+Current image startup also ensures `plugins/themes/bootstrap3` is present in the persistent app volume so the `bootstrap3` theme remains available after redeploys.
 
 It also configures Apache to honor `X-Forwarded-Proto` from Traefik so OJS correctly detects HTTPS behind reverse proxy.
 

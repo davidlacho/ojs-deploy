@@ -27,6 +27,8 @@ jobs:
           MARIADB_PASSWORD: ${{ secrets.MARIADB_PASSWORD }}
           ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
           OJS_HOSTNAME: ${{ secrets.OJS_HOSTNAME }}
+          OJS_JOURNAL_PATH: ${{ vars.OJS_JOURNAL_PATH }}
+          OJS_JOURNAL_THEME: ${{ vars.OJS_JOURNAL_THEME }}
         run: |
           set -euo pipefail
 
@@ -83,6 +85,8 @@ jobs:
               "MARIADB_PASSWORD=${MARIADB_PASSWORD}" \
               "ACME_EMAIL=${ACME_EMAIL}" \
               "OJS_HOSTNAME=${OJS_HOSTNAME}" \
+              "OJS_JOURNAL_PATH=${OJS_JOURNAL_PATH}" \
+              "OJS_JOURNAL_THEME=${OJS_JOURNAL_THEME}" \
               > .env
 
             # Start/update stack without a full teardown to avoid TLS cold-start races.
