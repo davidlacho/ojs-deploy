@@ -23,12 +23,29 @@ services:
 
   ojs:
     labels:
-      - 'traefik.http.middlewares.ojs-redirect.redirectscheme.scheme=https'
-      - 'traefik.http.routers.ojs-http.middlewares=ojs-redirect'
+      - 'traefik.http.middlewares.ojs-https-only.redirectscheme.scheme=https'
+      - 'traefik.http.middlewares.ojs-https-only.redirectscheme.permanent=true'
+      - 'traefik.http.middlewares.ojs-www-to-apex.redirectregex.regex=^https?://www\.${OJS_HOSTNAME}/(.*)'
+      - 'traefik.http.middlewares.ojs-www-to-apex.redirectregex.replacement=https://${OJS_HOSTNAME}/$${1}'
+      - 'traefik.http.middlewares.ojs-www-to-apex.redirectregex.permanent=true'
+      - 'traefik.http.routers.ojs-http.entrypoints=web'
+      - 'traefik.http.routers.ojs-http.rule=Host(`${OJS_HOSTNAME}`)'
+      - 'traefik.http.routers.ojs-http.middlewares=ojs-https-only'
+      - 'traefik.http.routers.ojs-http.service=noop@internal'
+      - 'traefik.http.routers.ojs-http-www.entrypoints=web'
+      - 'traefik.http.routers.ojs-http-www.rule=Host(`www.${OJS_HOSTNAME}`)'
+      - 'traefik.http.routers.ojs-http-www.middlewares=ojs-www-to-apex'
+      - 'traefik.http.routers.ojs-http-www.service=noop@internal'
       - 'traefik.http.routers.ojs-https.entrypoints=websecure'
       - 'traefik.http.routers.ojs-https.rule=Host(`${OJS_HOSTNAME}`)'
       - 'traefik.http.routers.ojs-https.tls=true'
       - 'traefik.http.routers.ojs-https.tls.certresolver=letsencrypt'
+      - 'traefik.http.routers.ojs-https-www.entrypoints=websecure'
+      - 'traefik.http.routers.ojs-https-www.rule=Host(`www.${OJS_HOSTNAME}`)'
+      - 'traefik.http.routers.ojs-https-www.tls=true'
+      - 'traefik.http.routers.ojs-https-www.tls.certresolver=letsencrypt'
+      - 'traefik.http.routers.ojs-https-www.middlewares=ojs-www-to-apex'
+      - 'traefik.http.routers.ojs-https-www.service=noop@internal'
       - 'traefik.http.services.ojs-https.loadbalancer.server.port=80'
 
 volumes:

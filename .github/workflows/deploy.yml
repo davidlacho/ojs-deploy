@@ -31,6 +31,8 @@ jobs:
           set -euo pipefail
 
           REMOTE_DIR="/opt/ojs"
+          CANONICAL_HOST="${OJS_HOSTNAME}"
+          WWW_HOST="www.${OJS_HOSTNAME}"
 
           ssh -o StrictHostKeyChecking=no "${DO_USER}@${DO_HOST}" "mkdir -p ${REMOTE_DIR}"
 
@@ -68,6 +70,7 @@ jobs:
             printf '%s\n' \
               "TZ=Etc/UTC" \
               "OJS_TARBALL_URL=https://pkp.sfu.ca/ojs/download/ojs-3.5.0-3.tar.gz" \
+              "OJS_BASE_URL=https://${OJS_HOSTNAME}" \
               "MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}" \
               "MARIADB_DATABASE=${MARIADB_DATABASE}" \
               "MARIADB_USER=${MARIADB_USER}" \
@@ -78,51 +81,140 @@ jobs:
 
             # Start stack.
             sudo docker compose down --remove-orphans || true
-            sudo docker compose up -d --build
-            sudo docker compose ps
+            sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+            sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
 
-            # Basic local smoke check from the droplet.
-            # Retry while services warm up (build/startup can take a bit).
-            LOCAL_OK=0
-            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-              HTTP_CODE=\$(curl -sS -o /dev/null -w \"%{http_code}\" http://127.0.0.1/ || true)
-              echo \"Local attempt \${attempt}: HTTP status \${HTTP_CODE}\"
-              if [ \"\${HTTP_CODE}\" = \"200\" ] || [ \"\${HTTP_CODE}\" = \"301\" ] || [ \"\${HTTP_CODE}\" = \"302\" ]; then
-                LOCAL_OK=1
+            # Local HTTPS + redirect checks from the droplet.
+            TMP_HEADERS_LOCAL=\$(mktemp)
+            trap 'rm -f \"\${TMP_HEADERS_LOCAL}\"' EXIT
+
+            HTTPS_OK=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
+              HTTPS_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${CANONICAL_HOST}:443:127.0.0.1\" \"https://${CANONICAL_HOST}/\" || true)
+              HTTPS_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
+              echo \"Local HTTPS attempt \${attempt}: status \${HTTPS_CODE}, location: \${HTTPS_LOCATION}\"
+              if [ \"\${HTTPS_CODE}\" = \"200\" ]; then
+                HTTPS_OK=1
+                break
+              fi
+              if [ \"\${HTTPS_CODE}\" = \"302\" ] && printf '%s' \"\${HTTPS_LOCATION}\" | grep -Eq '^https?://[^/]+/index\.php/index/[^/]+/install/?$|^/index\.php/index/[^/]+/install/?$'; then
+                HTTPS_OK=1
                 break
               fi
               sleep 5
             done
-            if [ \"\${LOCAL_OK}\" != \"1\" ]; then
-              echo \"Local smoke check failed after retries.\"
-              sudo docker compose ps
-              sudo docker compose logs --tail 250
+            if [ \"\${HTTPS_OK}\" != \"1\" ]; then
+              echo \"Local HTTPS smoke check failed after retries.\"
+              sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
+              sudo docker compose -f docker-compose.yml -f docker-compose.tls.yml logs --tail 250
+              exit 1
+            fi
+
+            HTTP_APEX_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${CANONICAL_HOST}:80:127.0.0.1\" \"http://${CANONICAL_HOST}/\" || true)
+            HTTP_APEX_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
+            echo \"Local HTTP apex redirect check: status \${HTTP_APEX_CODE}, location: \${HTTP_APEX_LOCATION}\"
+            if ! printf '%s' \"\${HTTP_APEX_CODE}\" | grep -Eq '^(301|308)$'; then
+              echo \"Expected HTTP apex to return 301/308 redirect.\"
+              exit 1
+            fi
+            if ! printf '%s' \"\${HTTP_APEX_LOCATION}\" | grep -Eq \"^https://${CANONICAL_HOST}/\"; then
+              echo \"Expected HTTP apex redirect Location to canonical HTTPS host.\"
+              exit 1
+            fi
+
+            HTTP_WWW_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${WWW_HOST}:80:127.0.0.1\" \"http://${WWW_HOST}/\" || true)
+            HTTP_WWW_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
+            echo \"Local HTTP www redirect check: status \${HTTP_WWW_CODE}, location: \${HTTP_WWW_LOCATION}\"
+            if ! printf '%s' \"\${HTTP_WWW_CODE}\" | grep -Eq '^(301|308)$'; then
+              echo \"Expected HTTP www to return 301/308 redirect.\"
+              exit 1
+            fi
+            if ! printf '%s' \"\${HTTP_WWW_LOCATION}\" | grep -Eq \"^https://${CANONICAL_HOST}/\"; then
+              echo \"Expected HTTP www redirect Location to canonical HTTPS host.\"
+              exit 1
+            fi
+
+            HTTPS_WWW_CODE=\$(curl -sS -D \"\${TMP_HEADERS_LOCAL}\" -o /dev/null -w \"%{http_code}\" --resolve \"${WWW_HOST}:443:127.0.0.1\" \"https://${WWW_HOST}/\" || true)
+            HTTPS_WWW_LOCATION=\$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,\"\");gsub(/\r/,\"\");print;exit}' \"\${TMP_HEADERS_LOCAL}\" || true)
+            echo \"Local HTTPS www redirect check: status \${HTTPS_WWW_CODE}, location: \${HTTPS_WWW_LOCATION}\"
+            if ! printf '%s' \"\${HTTPS_WWW_CODE}\" | grep -Eq '^(301|308)$'; then
+              echo \"Expected HTTPS www to return 301/308 redirect.\"
+              exit 1
+            fi
+            if ! printf '%s' \"\${HTTPS_WWW_LOCATION}\" | grep -Eq \"^https://${CANONICAL_HOST}/\"; then
+              echo \"Expected HTTPS www redirect Location to canonical HTTPS host.\"
               exit 1
             fi
           "
 
       - name: Smoke test public endpoint
         env:
-          DO_HOST: ${{ secrets.DO_HOST }}
+          OJS_HOSTNAME: ${{ secrets.OJS_HOSTNAME }}
         run: |
           set -euo pipefail
+          CANONICAL_HOST="${OJS_HOSTNAME}"
+          WWW_HOST="www.${OJS_HOSTNAME}"
           TMP_HEADERS="$(mktemp)"
           TMP_BODY="$(mktemp)"
           trap 'rm -f "${TMP_HEADERS}" "${TMP_BODY}"' EXIT
-          for attempt in 1 2 3 4 5; do
-            HTTP_CODE="$(curl -sS -D "${TMP_HEADERS}" -o "${TMP_BODY}" -w '%{http_code}' "http://${DO_HOST}/" || true)"
-            echo "Attempt ${attempt}: public HTTP status ${HTTP_CODE}"
-            if [ "${HTTP_CODE}" = "200" ]; then
-              exit 0
+
+          HTTPS_OK=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            HTTPS_CODE="$(curl -sS -D "${TMP_HEADERS}" -o "${TMP_BODY}" -w '%{http_code}' "https://${CANONICAL_HOST}/" || true)"
+            HTTPS_LOCATION="$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,"");gsub(/\r/,"");print;exit}' "${TMP_HEADERS}" || true)"
+            echo "Public HTTPS attempt ${attempt}: status ${HTTPS_CODE}, location: ${HTTPS_LOCATION}"
+            if [ "${HTTPS_CODE}" = "200" ]; then
+              HTTPS_OK=1
+              break
             fi
-            if [ "${attempt}" = "5" ]; then
-              echo "Final public probe failed. Response headers:"
-              sed -n '1,80p' "${TMP_HEADERS}" || true
-              echo "Final public probe failed. Response body snippet:"
-              sed -n '1,120p' "${TMP_BODY}" || true
+            if [ "${HTTPS_CODE}" = "302" ] && printf '%s' "${HTTPS_LOCATION}" | grep -Eq '^https?://[^/]+/index\.php/index/[^/]+/install/?$|^/index\.php/index/[^/]+/install/?$'; then
+              HTTPS_OK=1
+              break
             fi
             sleep 5
           done
-          echo "Public endpoint did not return HTTP 200 after retries."
-          exit 1
+          if [ "${HTTPS_OK}" != "1" ]; then
+            echo "Public HTTPS endpoint did not become healthy after retries."
+            echo "Last HTTPS response headers:"
+            sed -n '1,80p' "${TMP_HEADERS}" || true
+            echo "Last HTTPS response body snippet:"
+            sed -n '1,120p' "${TMP_BODY}" || true
+            exit 1
+          fi
+
+          HTTP_APEX_CODE="$(curl -sS -D "${TMP_HEADERS}" -o /dev/null -w '%{http_code}' "http://${CANONICAL_HOST}/" || true)"
+          HTTP_APEX_LOCATION="$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,"");gsub(/\r/,"");print;exit}' "${TMP_HEADERS}" || true)"
+          echo "Public HTTP apex redirect check: status ${HTTP_APEX_CODE}, location: ${HTTP_APEX_LOCATION}"
+          if ! printf '%s' "${HTTP_APEX_CODE}" | grep -Eq '^(301|308)$'; then
+            echo "Expected public HTTP apex to return 301/308."
+            exit 1
+          fi
+          if ! printf '%s' "${HTTP_APEX_LOCATION}" | grep -Eq "^https://${CANONICAL_HOST}/"; then
+            echo "Expected public HTTP apex redirect to canonical HTTPS host."
+            exit 1
+          fi
+
+          HTTP_WWW_CODE="$(curl -sS -D "${TMP_HEADERS}" -o /dev/null -w '%{http_code}' "http://${WWW_HOST}/" || true)"
+          HTTP_WWW_LOCATION="$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,"");gsub(/\r/,"");print;exit}' "${TMP_HEADERS}" || true)"
+          echo "Public HTTP www redirect check: status ${HTTP_WWW_CODE}, location: ${HTTP_WWW_LOCATION}"
+          if ! printf '%s' "${HTTP_WWW_CODE}" | grep -Eq '^(301|308)$'; then
+            echo "Expected public HTTP www to return 301/308."
+            exit 1
+          fi
+          if ! printf '%s' "${HTTP_WWW_LOCATION}" | grep -Eq "^https://${CANONICAL_HOST}/"; then
+            echo "Expected public HTTP www redirect to canonical HTTPS host."
+            exit 1
+          fi
+
+          HTTPS_WWW_CODE="$(curl -sS -D "${TMP_HEADERS}" -o /dev/null -w '%{http_code}' "https://${WWW_HOST}/" || true)"
+          HTTPS_WWW_LOCATION="$(awk 'BEGIN{IGNORECASE=1}/^Location:/{sub(/^Location:[[:space:]]*/,"");gsub(/\r/,"");print;exit}' "${TMP_HEADERS}" || true)"
+          echo "Public HTTPS www redirect check: status ${HTTPS_WWW_CODE}, location: ${HTTPS_WWW_LOCATION}"
+          if ! printf '%s' "${HTTPS_WWW_CODE}" | grep -Eq '^(301|308)$'; then
+            echo "Expected public HTTPS www to return 301/308."
+            exit 1
+          fi
+          if ! printf '%s' "${HTTPS_WWW_LOCATION}" | grep -Eq "^https://${CANONICAL_HOST}/"; then
+            echo "Expected public HTTPS www redirect to canonical HTTPS host."
+            exit 1
+          fi
 
