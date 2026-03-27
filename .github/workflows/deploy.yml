@@ -36,7 +36,7 @@ jobs:
 
           if [ -z "${CANONICAL_HOST}" ] || printf '%s' "${CANONICAL_HOST}" | grep -Eq 'https?://|/|[[:space:]]'; then
             echo "Invalid OJS_HOSTNAME secret: '${CANONICAL_HOST}'"
-            echo "Set OJS_HOSTNAME to host only, e.g. counterpublics.care (no protocol, no path)."
+            echo "Set OJS_HOSTNAME to host only, e.g. journal.example.org (no protocol, no path)."
             exit 1
           fi
 
