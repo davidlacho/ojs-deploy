@@ -30,6 +30,11 @@ if [ -n "${OJS_HOSTNAME:-}" ] && [ -f "$CONFIG_FILE" ]; then
     "$CONFIG_FILE"
 fi
 
+# Optional SMTP from environment (e.g. GitHub Actions secrets written to .env on deploy).
+if [ -f "$CONFIG_FILE" ] && [ -n "${OJS_SMTP_SERVER:-}" ]; then
+  php /usr/local/bin/configure-smtp.php
+fi
+
 # Ensure Bootstrap3 theme plugin exists on the persistent app volume.
 BOOTSTRAP3_DIR="/var/www/html/plugins/themes/bootstrap3"
 if [ ! -d "$BOOTSTRAP3_DIR" ]; then

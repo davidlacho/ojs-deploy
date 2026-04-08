@@ -32,6 +32,11 @@ It is designed so academics can deploy and maintain OJS with minimal manual serv
   - `http://<apex>` -> `https://<apex>`
   - `http(s)://www.<apex>` -> `https://<apex>`
 - Smoke tests that fail deploy if public HTTPS/redirects are broken
+- Crawler / LLM policy files from the repo are copied into the OJS web root on each deploy:
+  - `deploy/robots.txt` → `/var/www/html/robots.txt` (disallows common AI / LLM crawlers; see file for stance)
+  - `deploy/llms.txt` → `/var/www/html/llms.txt` and `/var/www/html/.well-known/llms.txt` (human-readable refusal of training/scraping rights, aligned with the same editorial stance)
+
+Edit those files in git to change policy; redeploy to apply. They are not legal advice—pair with licensing and journal terms as needed.
 
 ## Prerequisites
 
@@ -81,10 +86,21 @@ Set these in **Settings -> Secrets and variables -> Actions**:
 - `ACME_EMAIL` - valid email for Let's Encrypt notifications
 - `OJS_HOSTNAME` - apex host only, e.g. `journal.example.org`
 
-Optional GitHub **Repository Variables**:
+Optional GitHub **secrets** (outbound email via SMTP; if `OJS_SMTP_SERVER` is unset/empty, mail config is not applied):
+
+- `OJS_SMTP_SERVER` - SMTP host (e.g. `smtp.sendgrid.net`)
+- `OJS_SMTP_USERNAME` - SMTP user (often API key or mailbox)
+- `OJS_SMTP_PASSWORD` - SMTP password or API secret
+- `OJS_SMTP_DEFAULT_ENVELOPE_SENDER` - envelope From address your provider allows (e.g. `noreply@yourdomain.org`)
+
+Optional GitHub **Repository Variables** (non-sensitive tuning; empty values use `docker-compose.yml` defaults):
 
 - `OJS_JOURNAL_PATH` - journal path to configure automatically (e.g. `joicac`)
 - `OJS_JOURNAL_THEME` - theme path to enforce (e.g. `bootstrap3`, `default`)
+- `OJS_SMTP_PORT` - default `587` in Compose if unset
+- `OJS_SMTP_AUTH` - `tls`, `ssl`, or `none` (default `tls` in Compose if unset)
+- `OJS_SMTP_ALLOW_ENVELOPE_SENDER` - default `On`
+- `OJS_SMTP_FORCE_DEFAULT_ENVELOPE_SENDER` - default `Off`
 
 Important: `OJS_HOSTNAME` must be host-only (no `https://`, no path, no trailing slash).
 
@@ -122,6 +138,10 @@ It can also apply journal theme declaratively when both are set:
 Current image startup also ensures `plugins/themes/bootstrap3` is present in the persistent app volume so the `bootstrap3` theme remains available after redeploys.
 
 It also configures Apache to honor `X-Forwarded-Proto` from Traefik so OJS correctly detects HTTPS behind reverse proxy.
+
+### Outbound email (optional)
+
+When `OJS_SMTP_SERVER` is set in the droplet `.env` (via deploy secrets/vars), the container entrypoint runs `configure-smtp.php` on each start and updates `config.inc.php` `[email]` for SMTP. Requires a finished web install so `config.inc.php` exists. Redeploy after changing SMTP secrets so the new `.env` is written and the container restarts.
 
 ## Verification commands
 

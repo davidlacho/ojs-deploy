@@ -37,6 +37,7 @@ RUN if [ -z "${OJS_TARBALL_URL}" ]; then echo "OJS_TARBALL_URL build arg is requ
 # If OJS installer creates config and other files in the persistent volume,
 # this entrypoint fixes permissions once and then starts Apache.
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY configure-smtp.php /usr/local/bin/configure-smtp.php
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
