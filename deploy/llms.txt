@@ -1,0 +1,41 @@
+LLM / AI use policy for this journal site
+==========================================
+
+This file is deployed with the journal. It states our stance in plain terms.
+
+Feminist liberationist framing
+-------------------------------
+Knowledge published here is relational: it is produced by embodied people in
+specific communities and struggles. It is not raw material for uncompensated
+corporate extraction, surveillance capitalism, or “neutral” machine outputs
+that erase authorship, care, and accountability.
+
+What we refuse
+---------------
+We do not grant permission to operators of general-purpose language models or
+similar AI systems to use this site’s contents for training, fine-tuning,
+benchmarking, retrieval-augmented generation corpora, or other large-scale
+automated ingestion that treats our scholarship as scrape-and-train substrate.
+
+We reject uses that strip context, obscure provenance, or profit from labour
+without reciprocity to authors and affected communities.
+
+What this is not
+----------------
+This notice is not an attack on accessibility tools, assistive technology, or
+human readers. It targets extractive LLM / AI training and similar automated
+reuse. Traditional search indexing may continue where compatible with our
+robots.txt and applicable law.
+
+Rights
+------
+Authors and the journal retain copyright and related rights except where an
+article or resource is explicitly published under an open licence that says
+otherwise. Nothing here waives those rights for AI training or automated
+exploitation.
+
+Contact
+-------
+For licensing, collaboration, or good-faith questions, use the journal’s
+official contact information on this domain. No reply does not mean consent to
+scrape or train on this material.
